@@ -18,6 +18,8 @@ from openedx.core.lib.courses import course_image_url
 from xmodule.annotator_mixin import html_to_text
 from xmodule.library_tools import normalize_key_for_search
 from xmodule.modulestore import ModuleStoreEnum
+from cms.djangoapps.models.settings.course_metadata import CourseMetadata
+from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=wrong-import-order
 
 # REINDEX_AGE is the default amount of time that we look back for changes
 # that might have happened. If we are provided with a time at which the
@@ -533,6 +535,18 @@ class AboutInfo:
 
         return getattr(course, self.property_name, None)
 
+    def from_subject(self, **kwargs):
+        course_key = kwargs.get('course', None)
+        new_val = CourseMetadata.fetch(course_key)
+        advanced_dict = new_val.get("other_course_settings").get("value").get("subject")
+        return advanced_dict if advanced_dict else None
+ 
+    def from_age(self, **kwargs):
+        course_key = kwargs.get('course', None)
+        new_val = CourseMetadata.fetch(course_key)
+        advanced_dict = new_val.get("other_course_settings").get("value").get("agegroup")
+        return advanced_dict.replace(" ", "").split(",") if advanced_dict else None
+
     def from_course_mode(self, **kwargs):
         """ fetches the available course modes from the CourseMode model """
         course = kwargs.get('course', None)
@@ -545,7 +559,8 @@ class AboutInfo:
     FROM_ABOUT_INFO = from_about_dictionary
     FROM_COURSE_PROPERTY = from_course_property
     FROM_COURSE_MODE = from_course_mode
-
+    FROM_SUBJECT = from_subject
+    FROM_AGE = from_age
 
 class CourseAboutSearchIndexer(CoursewareSearchIndexer):
     """
@@ -587,6 +602,8 @@ class CourseAboutSearchIndexer(CoursewareSearchIndexer):
         AboutInfo("org", AboutInfo.PROPERTY, AboutInfo.FROM_COURSE_PROPERTY),
         AboutInfo("modes", AboutInfo.PROPERTY, AboutInfo.FROM_COURSE_MODE),
         AboutInfo("language", AboutInfo.PROPERTY, AboutInfo.FROM_COURSE_PROPERTY),
+        AboutInfo("Subject", AboutInfo.PROPERTY, AboutInfo.FROM_SUBJECT),
+        AboutInfo("Patient Age", AboutInfo.PROPERTY, AboutInfo.FROM_AGE),
     ]
 
     @classmethod
